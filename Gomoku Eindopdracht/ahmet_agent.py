@@ -2,7 +2,7 @@ import random, math, copy
 import gomoku
 from gomoku import Board, Move, GameState
 
-def findSpotToExpand(node):
+def findSpotToExpand(node): # Algoritme (22) uit de reader.
         if node.isTerminal():
             return node
         
@@ -25,7 +25,7 @@ def findSpotToExpand(node):
         bestChildNode = node.highestUCT()
         return findSpotToExpand(bestChildNode)
 
-def rollout(node):
+def rollout(node): # Algoritme (23) uit de reader.
     state = node.state
     valid_moves = node.valid_moves
     shuffled_valid_moves = random.shuffle(valid_moves)
@@ -54,10 +54,10 @@ class GameTreeNode:
     def isFullyExpanded(self):
         return len(self.children) == len(self.valid_moves) # If equal, The node is fully expanded because there is a childNode for each move.
     
-    def UCT(self):
+    def UCT(self): # Equation (1) uit de reader.
         return (self.Q / self.N) + (1 / math.sqrt(2)) * math.sqrt(2 * math.log(self.parent.N) / self.N)
 
-class ahmet_agent:
+class ahmetPlayer:
     """This class specifies a player that just does random moves.
     The use of this class is two-fold: 1) You can use it as a base random roll-out policy.
     2) it specifies the required methods that will be used by the competition to run
@@ -75,7 +75,7 @@ class ahmet_agent:
         """
         self.black = black_
 
-    def backupValue(self, val, node):
+    def backupValue(self, val, node): # Algoritme (24) uit de reader.
         while node is not None:
             node.N += 1
             if node.state[1] % 2 == self.black:
@@ -85,7 +85,7 @@ class ahmet_agent:
 
             node = node.parent
 
-    def move(self, state: GameState, last_move: Move, max_time_to_move: int = 1000) -> Move:
+    def move(self, state: GameState, last_move: Move, max_time_to_move: int = 1000) -> Move: #Algoritme (21) uit de reader.
         """This is the most important method: the agent will get:
         1) the current state of the game
         2) the last move by the opponent
