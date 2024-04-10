@@ -2,60 +2,27 @@ import random, math, copy
 import gomoku
 from gomoku import Board, Move, GameState
 
-def findSpotToExpand(node): # Algoritme (22) uit de reader.
-        if node.isTerminal():
-            return node
-        
-        if not node.isFullyExpanded(): # create a new child node for a not-yet-explored move (with n as its parent)
-            action = random.choice(node.valid_moves)
-            valid, win, childState = gomoku.move(node.state, action)
-            childNode = GameTreeNode(childState, node, action)
-            node.Children.append(childNode)
-            return childNode
-        
-        bestChildNode = None
-        bestUCT = 0
+    
+class GameTreeNode:
+    def __init__(self, state, parent=None, last_move=None):
+        self.state     = state
+        self.parent    = parent
+        self.last_move = last_move # pointer, for ease of use, corresponding to the previous game state
+        self.children  = []        # A container with children, corresponding to possible moves/subsequent game states.
+        self.N         = 0         # of visits to the node – this is used for exploration purposes
+        self.Q         = 0         # the total number of accrued points, i.e., the number of wins plus 0.5 times the number of draws.
 
-        for child in node.children:
-            childScore = child.UCT()
-            if childScore > bestUCT:
-                bestChildNode = child
-                bestUCT = childScore
-
-        bestChildNode = node.highestUCT()
-        return findSpotToExpand(bestChildNode)
-
-def rollout(node): # Algoritme (23) uit de reader.
-    state = node.state
-    valid_moves = node.valid_moves
-    shuffled_valid_moves = random.shuffle(valid_moves)
-
-    while not node.isTerminal():
-        a = shuffled_valid_moves.pop()
-        valid, win, state = gomoku.move(state, a)
-
-    return win
-
-class GameTreeNode: 
-    def __init__(self, state : gomoku.GameState, parent, last_move : gomoku.Move):
-        self.state = state
-        self.valid_moves = gomoku.valid_moves(self.state)
-        self.last_move = last_move
-        self.parent = parent # pointer, for ease of use, corresponding to the previous game state
-        self.children = []   # A container with children, corresponding to possible moves/subsequent game states.
-        self.N = 0           # of visits to the node – this is used for exploration purposes
-        self.Q = 0           # the total number of accrued points, i.e., the number of wins plus 0.5 times the number of draws.
-
-    def isTerminal(self):
-        if len(gomoku.valid_moves(self.state)) == 0:
+    def isTerminal(self): #returns whether the game is finished or not
+        if gomoku.check_win(self.state[0], self.last_move) or len(gomoku.valid_moves(self.state)) == 0:
             return True
         return False
-    
+
     def isFullyExpanded(self):
-        return len(self.children) == len(self.valid_moves) # If equal, The node is fully expanded because there is a childNode for each move.
-    
-    def UCT(self): # Equation (1) uit de reader.
+        return len(self.children) == len(gomoku.valid_moves(self.state)) # If equal, The node is fully expanded because there is a childNode for each move.
+
+    def UCT(self): #returns the uct result of the child
         return (self.Q / self.N) + (1 / math.sqrt(2)) * math.sqrt(2 * math.log(self.parent.N) / self.N)
+
 
 class ahmetPlayer:
     """This class specifies a player that just does random moves.
@@ -63,7 +30,6 @@ class ahmetPlayer:
     2) it specifies the required methods that will be used by the competition to run
     your player
     """
-
     def __init__(self, black_: bool = True):
         """Constructor for the player."""
         self.black = black_
@@ -75,7 +41,63 @@ class ahmetPlayer:
         """
         self.black = black_
 
-    def backupValue(self, val, node): # Algoritme (24) uit de reader.
+    def whoWon(self, node): 
+        """
+        Return: Who won, 1 == You, -1 == Opponent, 0 == Draw.
+        """
+        if gomoku.check_win(node.state[0], node.last_move):
+            if node.state[1] % 2 != self.black:
+                return 1
+            if node.state[1] % 2 == self.black:
+                return -1
+        return 0
+
+    def findSpotToExpand(self, node): # Algoritme (22) uit de reader.
+        if node.isTerminal(): # returns the root-node if the game has finished
+            return node
+
+        valid_moves = copy.deepcopy(gomoku.valid_moves(node.state))
+
+        if not node.isFullyExpanded():
+            copy_state = copy.deepcopy(node.state)
+            random.shuffle(valid_moves)
+            action = valid_moves.pop()
+
+            while True:
+                for child in node.children: #find unexplored actions
+                    if child.last_move == action:
+                        action = valid_moves.pop()
+                break
+
+            valid, win, state = gomoku.move(copy_state, action)
+
+            newChildNode = GameTreeNode(state, node, action)
+            node.children.append(newChildNode)
+
+            return newChildNode
+        
+        bestChildNode = None
+        bestUCT = -math.inf
+
+        for child in node.children:
+            childScore = child.UCT()
+            if childScore > bestUCT:
+                bestChildNode = child
+                bestUCT = childScore
+                
+        return self.findSpotToExpand(bestChildNode)
+
+    def rollout(self, node, state): # Algoritme (23) uit de reader.
+        valid_moves = copy.deepcopy(gomoku.valid_moves(node.state))
+        random.shuffle(valid_moves)
+
+        while not node.isTerminal() and len(valid_moves) != 0:
+            action = valid_moves.pop()
+            valid, win, state = gomoku.move(state, action)
+
+        return self.whoWon(node) #Returns who won
+
+    def BackupValue(self, val, node): # Algoritme (24) uit de reader.
         while node is not None:
             node.N += 1
             if node.state[1] % 2 == self.black:
@@ -92,20 +114,20 @@ class ahmetPlayer:
         3) the available moves you can play (this is a special service we provide ;-) )
         4) the maximum time until the agent is required to make a move in milliseconds [diverging from this will lead to disqualification].
         """
-        n_root = GameTreeNode(state, None, last_move)
-    
+        n_root = GameTreeNode(copy.deepcopy(state), last_move=last_move)
+
         while max_time_to_move != 0:
-            n_leaf = findSpotToExpand(n_root)
-            val = rollout(n_leaf)
-            self.backupValue(n_leaf, val)
+            n_leaf = self.findSpotToExpand(n_root)
+            val    = self.rollout(n_leaf, copy.deepcopy(state))
+            self.BackupValue(val, n_leaf)
             max_time_to_move -= 1
 
         bestMove = None
-        bestVal = 0
+        bestVal = -math.inf
 
         for child in n_root.children:
             childVal = child.Q / child.N
-            if childVal > bestVal:
+            if childVal > bestVal and child.last_move in gomoku.valid_moves(copy.deepcopy(state)):
                 bestVal = childVal
                 bestMove = child.last_move
 
