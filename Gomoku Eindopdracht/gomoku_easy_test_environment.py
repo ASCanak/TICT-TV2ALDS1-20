@@ -202,7 +202,7 @@ aiPlayer3 = gomoku_ai_random_webclient(True, GmGameRules.winningSeries, GmGameRu
 aiPlayer4 = ahmetPlayer()
 
 # uncomment the line below to test again yourself as human (player1 is black and starts the game)
-GmGame.start(player1=aiPlayer4, player2=aiPlayer2, max_time_to_move=1000, showIntermediateMoves=True)  # don't specify an aiPlayer for Human vs Human games
+# GmGame.start(player1=aiPlayer4, player2=aiPlayer2, max_time_to_move=1000, showIntermediateMoves=True)  # don't specify an aiPlayer for Human vs Human games
 
 # uncomment the line below to run some simple tests for quick analysis and debugging.
-# GmQuickTests.doAllTests(aiPlayer4)
+GmQuickTests.doAllTests(aiPlayer4)
