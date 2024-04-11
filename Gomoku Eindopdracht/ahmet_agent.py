@@ -114,15 +114,13 @@ class ahmetPlayer:
         3) the available moves you can play (this is a special service we provide ;-) )
         4) the maximum time until the agent is required to make a move in milliseconds [diverging from this will lead to disqualification].
         """
-        start_time = time.perf_counter()
         n_root = GameTreeNode(deepcopy(state), lastMove=last_move)
         
-        elapsed_time = time.perf_counter() - start_time
-        while elapsed_time < (max_time_to_move / 1000):
+        while max_time_to_move != 0:
             n_leaf = self.findSpotToExpand(n_root)
             val    = self.rollout(n_leaf, deepcopy(state))
             self.BackupValue(val, n_leaf)
-            elapsed_time = time.perf_counter() - start_time
+            max_time_to_move -= 1
 
         bestMove = None
         bestVal = -math.inf
