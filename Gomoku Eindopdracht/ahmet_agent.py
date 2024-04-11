@@ -21,7 +21,7 @@ class GameTreeNode:
         return len(self.children) == len(self.validMoves) # If equal, The node is fully expanded because there is a childNode for each move.
 
     def UCT(self): #returns the uct result of the child
-        return (self.Q / self.N) + math.sqrt(2) * math.sqrt(math.log(self.parent.N) / self.N)
+        return (self.Q / self.N) + (1 / math.sqrt(2)) * math.sqrt(2 * math.log(self.parent.N) / self.N)
 
 
 class ahmetPlayer:
@@ -41,14 +41,14 @@ class ahmetPlayer:
         """
         self.black = black_
 
-    def whoWon(self, node): 
+    def whoWon(self, node, state): 
         """
         Return: Who won, 1 == You, -1 == Opponent, 0 == Draw.
         """
-        if gomoku.check_win(node.state[0], node.lastMove):
-            if node.state[1] % 2 != self.black:
+        if gomoku.check_win(state[0], node.lastMove):
+            if state[1] % 2 != self.black:
                 return 1
-            if node.state[1] % 2 == self.black:
+            if state[1] % 2 == self.black:
                 return -1
         return 0
 
@@ -56,10 +56,9 @@ class ahmetPlayer:
         if node.isTerminal(): # returns the root-node if the game has finished
             return node
 
-        valid_moves = deepcopy(gomoku.valid_moves(node.state))
+        valid_moves = gomoku.valid_moves(node.state)
 
         if not node.isFullyExpanded():
-            copy_state = deepcopy(node.state)
             random.shuffle(valid_moves)
             action = valid_moves.pop()
 
@@ -69,7 +68,7 @@ class ahmetPlayer:
                         action = valid_moves.pop()
                 break
 
-            valid, win, state = gomoku.move(copy_state, action)
+            _, _, state = gomoku.move(deepcopy(node.state), action)
 
             newChildNode = GameTreeNode(state, node, action)
             node.children.append(newChildNode)
@@ -87,15 +86,16 @@ class ahmetPlayer:
                 
         return self.findSpotToExpand(bestChildNode)
 
-    def rollout(self, node, state): # Algoritme (23) uit de reader.
+    def rollout(self, node): # Algoritme (23) uit de reader.
+        state = deepcopy(node.state)
         valid_moves = deepcopy(gomoku.valid_moves(node.state))
         random.shuffle(valid_moves)
 
         while not node.isTerminal() and len(valid_moves) != 0:
             action = valid_moves.pop()
-            valid, win, state = gomoku.move(state, action)
+            _, _, state = gomoku.move(state, action)
 
-        return self.whoWon(node)
+        return self.whoWon(node, state)
 
     def BackupValue(self, val, node): # Algoritme (24) uit de reader.
         while node is not None:
@@ -118,7 +118,7 @@ class ahmetPlayer:
         
         while max_time_to_move != 0:
             n_leaf = self.findSpotToExpand(n_root)
-            val    = self.rollout(n_leaf, deepcopy(state))
+            val    = self.rollout(n_leaf)
             self.BackupValue(val, n_leaf)
             max_time_to_move -= 1
 
