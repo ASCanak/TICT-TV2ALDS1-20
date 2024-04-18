@@ -3,6 +3,10 @@ from gomoku import Board, Move, GameState
 from copy import deepcopy
 
 class GameTreeNode:
+    """
+    This is a node in the tree used to represent possible game states. It keeps track of the game state, the parent node, the last move made, 
+    valid moves, children of the node, and some statistics for the MCTS algorithm such as the number of visits and the total score.
+    """
     def __init__(self, state, parent=None, lastMove=None):
         self.state      = deepcopy(state)
         self.parent     = parent
@@ -12,15 +16,31 @@ class GameTreeNode:
         self.N          = 0        # of visits to the node – this is used for exploration purposes
         self.Q          = 0        # the total number of accrued points, i.e., the number of wins plus 0.5 times the number of draws.
 
-    def isTerminal(self): #returns whether the game is finished or not
+    def isTerminal(self): 
+        """
+        Checks whether the current game has ended by looking at winning conditions or an empty list of valid moves.
+
+        Time-Complexity O(1): This is because it simply checks for win conditions and the presence of valid moves, both of which can be determined with fixed, constant-time operations.
+        """
         if gomoku.check_win(self.state[0], self.lastMove) or len(self.validMoves) == 0:
             return True
         return False
 
     def isFullyExpanded(self):
-        return len(self.children) == len(self.validMoves) # If equal, The node is fully expanded because there is a childNode for each move.
+        """
+        Checks whether all possible children of the node have been generated.
+        
+        Time-Complexity O(1): This comparison involves accessing the lengths of two lists, which are operations that take constant time, regardless of the size of the lists.
+        """
+        return len(self.children) == len(self.validMoves)
 
-    def UCT(self): #returns the uct result of the child
+    def UCT(self): 
+        """
+        Calculates the Upper Confidence Bound for Trees (UCT) score for a child of the node. 
+        This is used to select the child node to expand during the selection phase of MCTS.
+        
+        Time-Complexity O(1): This is because its time complexity is not dependent on any input size, but rather on fixed operations and accessing attributes of the node, which are constant-time operations.
+        """
         return (self.Q / self.N) + (1 / math.sqrt(2)) * math.sqrt(2 * math.log(self.parent.N) / self.N)
 
 
@@ -42,7 +62,7 @@ class ahmetPlayer:
         self.black = black_
 
     def whoWon(self, node, state): 
-        """
+        """ Determines who has won the game based on the current state and the last move.
         Return: Who won, 1 == You, -1 == Opponent, 0 == Draw.
         """
         if gomoku.check_win(state[0], node.lastMove):
@@ -53,6 +73,14 @@ class ahmetPlayer:
         return 0
 
     def findSpotToExpand(self, node): # Algoritme (22) uit de reader.
+        """
+        Chooses a node to expand according to the MCTS algorithm. It first tries to find unexplored moves, 
+        and otherwise chooses the child node with the highest UCT score.
+
+        Time-Complexity O(n): This is because the most significant factor influencing the time complexity is the computation of the list of valid moves, which takes O(n) time. 
+        The other operations within the method, such as iterating over the children or shuffling the list of valid moves, 
+        are relatively minor compared to the linear time complexity of generating the list of valid moves. 
+        """
         if node.isTerminal(): # returns the root-node if the game has finished
             return node
 
@@ -87,6 +115,12 @@ class ahmetPlayer:
         return self.findSpotToExpand(bestChildNode)
 
     def rollout(self, node): # Algoritme (23) uit de reader.
+        """
+        Performs a roll-out from the given node to the end of the game and determines the winner.
+        
+        Time-Complexity O(n): This is because the dominant factor in the time complexity of rollout is the generation and shuffling of the list of valid moves, 
+        both of which have a time complexity of O(n) where n is the number of valid moves. 
+        """
         state = deepcopy(node.state)
         valid_moves = deepcopy(gomoku.valid_moves(node.state))
         random.shuffle(valid_moves)
@@ -98,6 +132,11 @@ class ahmetPlayer:
         return self.whoWon(node, state)
 
     def BackupValue(self, val, node): # Algoritme (24) uit de reader.
+        """
+        Updates the statistics of all nodes along the path from the expanded node to the root with the outcome of the roll-out.
+        
+        Time-Complexity O(1): This is because it is just based on a single node.
+        """
         while node is not None:
             node.N += 1
             if node.state[1] % 2 == self.black:
